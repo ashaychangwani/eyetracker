@@ -80,19 +80,25 @@ cam1FrameHeight=500
 cam2FrameHeight=1080-cam1FrameHeight
 menuFrameHeight=1080
 
-
+cams=["Camera 1","Camera 2"]
+cap=None
+cap2=None
+execStarted=False
 def initCams():
-    width, height = 800, 600
-    cap = cv2.VideoCapture(1)
-    cap2 = cv2.VideoCapture(0)
-    cap.set(3,640)
-    cap.set(4,480)
-    cap2.set(3,640)
-    cap2.set(4,480)
+    global cap,cap2,execStarted
     try:
-        show_frame()
+        width, height = 800, 600
+        cap = cv2.VideoCapture(int(camVar.get()[-1])-1)
+        cap2 = cv2.VideoCapture(int(camVar2.get()[-1])-1)
+        cap.set(3,640)
+        cap.set(4,480)
+        cap2.set(3,640)
+        cap2.set(4,480)
+        if not execStarted:    
+            show_frame()
     except Exception as e:
         print(e)
+    execStarted=True
 
 def show_frame():
     _, frameDisp = cap.read()
@@ -125,15 +131,25 @@ frame3.pack_propagate(0)
 frame.pack(side=LEFT)
 lmain = Label(frame2)
 lslave = Label(frame2,text="Front Camera",font=("Times New Roman",22))
+camVar = StringVar(frame2)
+camVar.set(cams[0])
+lOptions = OptionMenu(frame2,camVar,*cams)
+
 lmain2 = Label(frame3)
 lslave2 = Label(frame3,text="Iris Camera",font=("Times New Roman",22))
+camVar2 = StringVar(frame3)
+camVar2.set(cams[1])
+lOptions2 = OptionMenu(frame3,camVar2,*cams)
+
+
 frame2.pack(anchor='ne')
 frame3.pack(anchor='se')
 lmain.place(x=camFrameWidth/2, y=cam1FrameHeight/2, anchor="center")
 lmain2.place(x=camFrameWidth/2, y=cam2FrameHeight/2, anchor="center")
 lslave.place(x=20, y=cam1FrameHeight/2, anchor="w")
+lOptions.place(x=20, y=cam1FrameHeight/2+30, anchor="w")
 lslave2.place(x=20, y=cam2FrameHeight/2, anchor="w")
-
+lOptions2.place(x=20, y=cam2FrameHeight/2+30, anchor="w")
 labelTitle = Label(frame, text="Eye Tracker",font=("Times New Roman",30))
 labelTitle.place(x=menuFrameWidth/2,y=20,anchor="center")
 
