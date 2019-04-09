@@ -23,6 +23,7 @@ while (1):
     (minVal, maxVal, minLoc, maxLoc) = cv2.minMaxLoc(mask)
     
     contours, heih = cv2.findContours(mask,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+    count=0
     for c in contours:
        # calculate moments for each contour
        M = cv2.moments(c)
@@ -31,11 +32,15 @@ while (1):
        if M["m00"] != 0:
          cX = int(M["m10"] / M["m00"])
          cY = int(M["m01"] / M["m00"])
+         count+=1
        else:
          cX, cY = 0, 0
        cv2.circle(mask, (cX, cY), 15, (120, 120, 120), 2)
 
-
+    if(count<3):
+        print("Unable to track all")
+    else:
+        print("tracking correct;y")
 #    cv2.circle(hsv, maxLoc, 15, (255, 255, 255), 2, cv2.LINE_AA)
     cv2.imshow('Track Laser', mask)
 
