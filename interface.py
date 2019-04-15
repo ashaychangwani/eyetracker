@@ -13,9 +13,14 @@ import tensorflow as tf
 import csv
 import sys
 import numpy as np
+from pandas import *
 import math
-#from keras.models import Sequential
-#from keras.layers import Dense
+
+
+
+
+from keras.models import Sequential
+from keras.layers import Dense
 sys.path.append("/Users/ashay/Desktop/eyeTracker/models/research/object_detection")
 sys.path.append("/Users/ashay/Desktop/eyeTracker/models/research")
 
@@ -40,7 +45,7 @@ maxC=None
 
 warningMessage="Tracking beacons: "
 
-cams=["Camera 2","Camera 1"]
+cams=["Camera 1","Camera 2"]
 cap=None
 cap2=None
 execStarted=False
@@ -53,8 +58,8 @@ gTruthY=0
 
 csvIndex=0
 writer=None
-writeFile=open('calib.csv', 'w') 
-writer = csv.writer(writeFile)
+writeFile=None
+writer = None
 
 def initCalib():
     global model,gTruthX,gTruthY
@@ -62,18 +67,27 @@ def initCalib():
     root2.attributes("-fullscreen", True)
     root2.bind('<Escape>', lambda q: root2.quit())
     root2.geometry("1920x1080")
-    waitVar=BooleanVar()
+    waitVar=BooleanVar(master=root2)
 
     	
     def temp():
-        global waitVar
+        nonlocal waitVar
         waitVar.set(True)
+    def quitThisMethod():
+        global isCalibrating
+        print('here')
+        isCalibrating=False
+        writeFile.close()
+        
     def displayDots():
-        global waitVar,isCalibrating,gTruthX,gTruthY
+        global isCalibrating,gTruthX,gTruthY,model,writeFile,writer
+        nonlocal waitVar
+        writeFile=open('calib.csv', 'w') 
+        writer = csv.writer(writeFile)
         isCalibrating=True
         canvas = Canvas(root2, width=1920, height=1080, borderwidth=0, highlightthickness=0, bg="black")
         canvas.place(x=1920/2,y=1080/2,anchor="center")
-        quitButton=Button(canvas, text="Quit", command=root2.destroy)
+        quitButton=Button(canvas, text="Quit", command=lambda:[root2.destroy(),quitThisMethod()])
         quitButton.place(x=1920/2,y=1000,anchor="center")
         for i in range (5):
             for j in range (5):   
@@ -82,20 +96,28 @@ def initCalib():
                 gTruthX=x
                 gTruthY=y
                 canvas.create_oval(x-10, y-10, x+10, y+10, outline="#f11",fill="#1f1", width=2)
-                root.after(4000, temp)
-                root.wait_variable(waitVar)
-                                   
+                root2.after(500, temp)
+                root2.wait_variable(waitVar)
                 root2.update()
-               
-#                print('waiting',nextPt.get())
-#                while(test==False):
-#                    pass
-#                test=False
-#                print('here')
+        
         isCalibrating=False
+        writeFile.close()
+        canvas.destroy()
+        print('idhar pohonch gaya bc')
+        dataframe=read_csv("calib.csv")
+        print(dataframe)
+        print('idhar bhi pohonch gaya bc')
+        model=Sequential()
+        model.add(Dense(4,input_dim=13,kernel_initializer='normal', activation='relu'))
+        model.add(Dense(4,kernel_initializer='normal', activation='relu'))
+        model.add(Dense(1,kernel_initializer='normal'))
+        model.compile(loss='mean_squared_error', optimizer='adam')
+        
     frame = Frame(root2, width=1920, height=1080,bg='Red')
     startCalib=Button(frame, text="Start Calibration", command=displayDots)
     startCalib.place(x=1920/2,y=950,anchor="center")
+    quitExec=Button(frame, text="Quit", command=root2.destroy)
+    quitExec.place(x=1920/2,y=900,anchor="center")
     frame.pack()
     
     
@@ -134,15 +156,17 @@ def show_frame():
        if M["m00"] != 0:
          cX = int(M["m10"] / M["m00"])
          cY = int(M["m01"] / M["m00"])
-         count+=1
          cv2.circle(mask, (cX, cY), 15, (120, 120, 120), 2)
-         row.append((cX/1920,cY/1080))
+         if(count<3):
+             row.append((cX/1920,cY/1080))
+         count+=1
        else:
          cX, cY = 0, 0
          row.append((-1,-1))
     row=sorted(row , key=lambda k: [k[0], k[1]])
-    for i in range (count,3):
+    while (count<3):
         row.append((-1,-1))
+        count+=1
     beaconCount.set("Beacons being tracked: "+str(count))
     mask = cv2.flip(mask, -1)
     img = PIL.Image.fromarray(mask)
@@ -194,12 +218,13 @@ def show_frame():
     lmain2.configure(image=imgtk2)
     if(isCalibrating):
         if(len(row)>3):
-            row.append(tuple((gTruthX,gTruthY)))
-            writer.writerow(row)
-            print(row)
+            try:
+                row.append(tuple((gTruthX/1920,gTruthY/1080)))
+                writer.writerow(row)
+            except Exception as e:
+                print(e)
     else:
-        print('not workingggg')
-        print(row)
+        pass
     lmain.after(10, show_frame)
 
 root=Tk()
@@ -234,7 +259,7 @@ lOptions.place(x=20, y=cam1FrameHeight/2+30, anchor="w")
 lslave2.place(x=20, y=cam2FrameHeight/2, anchor="w")
 lOptions2.place(x=20, y=cam2FrameHeight/2+30, anchor="w")
 labelTitle = Label(frame, text="Eye Tracker",font=("Times New Roman",30))
-labelTitle.place(x=menuFrameWidth/2,y=20,anchor="center")
+labelTitle.place(x=menuFrameWidth/2,y=80,anchor="center")
 
 
 beaconCount=StringVar()
@@ -257,7 +282,6 @@ startCalibration.place(x=menuFrameWidth/2,y=menuFrameHeight/2+30,anchor="center"
 
 
 
-waitVar=BooleanVar()
 #try:    
 #    show_frame()
 #except:
