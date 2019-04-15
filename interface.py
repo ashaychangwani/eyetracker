@@ -136,7 +136,7 @@ def show_frame():
          cY = int(M["m01"] / M["m00"])
          count+=1
          cv2.circle(mask, (cX, cY), 15, (120, 120, 120), 2)
-         row.append((cX,cY))
+         row.append((cX/1920,cY/1080))
        else:
          cX, cY = 0, 0
          row.append((-1,-1))
@@ -179,7 +179,7 @@ def show_frame():
         x,y,w,h = cv2.boundingRect(c)
         if(distance((x+w/2,y+h/2),oldContour)<90):
             cv2.circle(frame,(int(x+w/2),int(y+h/2)), 15, (120, 120, 120), 2)
-            row.append((x+w/2,y+h/2))
+            row.append(((x+w/2)/1920,(y+h/2)/1080))
         else:
             row=[]
         
