@@ -11,7 +11,7 @@ import cv2
 import time
 import tensorflow as tf
 import csv
-import sys
+import sys,os
 import numpy as np
 from pandas import *
 import math
@@ -35,7 +35,7 @@ cam1FrameHeight=500
 cam2FrameHeight=1080-cam1FrameHeight
 menuFrameHeight=1080
 
-lower_white = np.array([180])
+lower_white = np.array([220])
 upper_white = np.array([255])
 
 
@@ -54,6 +54,12 @@ isCalibrating=False
 gTruthX=0
 gTruthY=0
 
+
+
+htScale=None
+wdScale=None
+htScale2=None
+wdScale2=None
 #model=Sequential()
 
 csvIndex=0
@@ -96,17 +102,15 @@ def initCalib():
                 gTruthX=x
                 gTruthY=y
                 canvas.create_oval(x-10, y-10, x+10, y+10, outline="#f11",fill="#1f1", width=2)
-                root2.after(500, temp)
+                root2.after(4000, temp)
                 root2.wait_variable(waitVar)
                 root2.update()
         
         isCalibrating=False
         writeFile.close()
         canvas.destroy()
-        print('idhar pohonch gaya bc')
         dataframe=read_csv("calib.csv")
         print(dataframe)
-        print('idhar bhi pohonch gaya bc')
         model=Sequential()
         model.add(Dense(4,input_dim=13,kernel_initializer='normal', activation='relu'))
         model.add(Dense(4,kernel_initializer='normal', activation='relu'))
@@ -137,7 +141,9 @@ def initCams():
         if not execStarted:    
             show_frame()
     except Exception as e:
-        print(e)
+        exc_type, exc_obj, exc_tb = sys.exc_info()
+        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+        print("EXCP HERE",exc_type, fname, exc_tb.tb_lineno)
     execStarted=True
 
 def distance(p1,p2):
@@ -152,80 +158,81 @@ def show_frame():
     count=0
     row=[]
     for c in contours:
-       M = cv2.moments(c)
-       if M["m00"] != 0:
-         cX = int(M["m10"] / M["m00"])
-         cY = int(M["m01"] / M["m00"])
-         cv2.circle(mask, (cX, cY), 15, (120, 120, 120), 2)
-         if(count<3):
-             row.append((cX/1920,cY/1080))
-         count+=1
-       else:
-         cX, cY = 0, 0
-         row.append((-1,-1))
-    row=sorted(row , key=lambda k: [k[0], k[1]])
-    while (count<3):
-        row.append((-1,-1))
-        count+=1
+       if cv2.contourArea(c) > 400:
+           M = cv2.moments(c)
+           if M["m00"] != 0:
+             cX = int(M["m10"] / M["m00"])
+             cY = int(M["m01"] / M["m00"])
+             cv2.circle(mask, (cX, cY), 15, (120, 120, 120), 2)
+             if(count<3):
+                 row.extend([cX/1920,cY/1080])
+             count+=1
+#    row=sorted(row , key=lambda k: [k[0], k[1]])
     beaconCount.set("Beacons being tracked: "+str(count))
+    while (count<3):
+        row.extend([-1,-1])
+        count+=1
     mask = cv2.flip(mask, -1)
     img = PIL.Image.fromarray(mask)
     imgtk = ImageTk.PhotoImage(image=img)
     lmain.imgtk = imgtk
     lmain.configure(image=imgtk)
 
+
+
+
+
     
     _, frameDisp2 = cap2.read()    
     
-    frame=frameDisp2[310:810,220:770]
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    
-    gray=cv2.medianBlur(gray,3)
-#    //75 decent, eyelash interfering
-    ret,thresh = cv2.threshold(gray,71,255,cv2.THRESH_BINARY_INV)
-    contours, heih = cv2.findContours(thresh,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
-    
-    cv2.drawContours(frame, contours, -1, (0,255,0), 1)
-    test=False
+    #frame=frameDisp2[180:855,370:850]
+    frame=frameDisp2[wdScale.get():wdScale2.get(),htScale.get():htScale2.get()]
     try:
-        maxC=contours[0]
-    except:
-        pass
-    for c in contours:
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        gray=cv2.medianBlur(gray,3)
+    #    //75 decent, eyelash interfering
+        ret,thresh = cv2.threshold(gray,67,255,cv2.THRESH_BINARY_INV)
+        contours, heih = cv2.findContours(thresh,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+        
+        cv2.drawContours(frame, contours, -1, (0,120,0), 1)
+        test=False
         try:
-            if(cv2.contourArea(c)/cv2.arcLength(c,True)>cv2.contourArea(maxC)/cv2.arcLength(maxC,True) and cv2.contourArea(c)/cv2.arcLength(c,True)>13):
-                maxC=c
-                test=True
+            maxC=contours[0]
         except:
             pass
-    if(test):
-        c=maxC
-        x,y,w,h = cv2.boundingRect(c)
-        if(distance((x+w/2,y+h/2),oldContour)<90):
-            cv2.circle(frame,(int(x+w/2),int(y+h/2)), 15, (120, 120, 120), 2)
-            row.append(((x+w/2)/1920,(y+h/2)/1080))
+        for c in contours:
+            try:
+                if(cv2.contourArea(c)/cv2.arcLength(c,True)>cv2.contourArea(maxC)/cv2.arcLength(maxC,True)):# and cv2.contourArea(c)/cv2.arcLength(c,True)>13):
+                    maxC=c
+#                    test=True
+            except:
+                pass
+        if(cv2.contourArea(maxC)>3000):
+            c=maxC
+            cv2.drawContours(frame, c, -1, (255,255,255), 1)
+            x,y,w,h = cv2.boundingRect(c)
+            cv2.circle(frame,(int(x+w/2),int(y+h/2)), 15, (255, 0, 0), 2)
+            row.extend([(x+w/2),(y+h/2)])
         else:
             row=[]
-        
-        oldContour=(x+w/2,y+h/2)
-    else:
-        row=[]
-        
-    frameDisp2 = cv2.rotate(frame,rotateCode=cv2.ROTATE_90_CLOCKWISE)
-    img2 = PIL.Image.fromarray(frameDisp2)
-    imgtk2 = ImageTk.PhotoImage(image=img2)
-    lmain2.imgtk = imgtk2
-    lmain2.configure(image=imgtk2)
-    if(isCalibrating):
-        if(len(row)>3):
-            try:
-                row.append(tuple((gTruthX/1920,gTruthY/1080)))
-                writer.writerow(row)
-            except Exception as e:
-                print(e)
-    else:
-        pass
-    lmain.after(10, show_frame)
+            
+        frameDisp2 = cv2.rotate(frame,rotateCode=cv2.ROTATE_90_CLOCKWISE)
+        img2 = PIL.Image.fromarray(frameDisp2)
+        imgtk2 = ImageTk.PhotoImage(image=img2)
+        lmain2.imgtk = imgtk2
+        lmain2.configure(image=imgtk2)
+        if(isCalibrating):
+            if(len(row)>3):
+                try:
+                    row.extend([gTruthX/1920,gTruthY/1080])
+                    writer.writerow(row)
+                except Exception as e:
+                    print(e)
+        else:
+            pass
+        lmain.after(10, show_frame)
+    except:
+        print("exception here")
 
 root=Tk()
 #root.attributes("-fullscreen", True)
@@ -250,16 +257,34 @@ camVar2.set(cams[1])
 lOptions2 = OptionMenu(frame3,camVar2,*cams)
 
 
+lslave3 = Label(frame3,text="Boundary adjustment",font=("Times New Roman",16))
+htScale=Scale(frame3,from_=0,to=960, orient=HORIZONTAL)
+htScale2=Scale(frame3,from_=0,to=960, orient=HORIZONTAL)
+wdScale=Scale(frame3,from_=0,to=960, orient=HORIZONTAL)
+wdScale2=Scale(frame3,from_=0,to=960, orient=HORIZONTAL)
+#[180:855,370:850]
+htScale.set(370)
+htScale2.set(850)
+wdScale.set(180)
+wdScale2.set(855)
+
+
+
 frame2.pack(anchor='ne')
 frame3.pack(anchor='se')
 lmain.place(x=camFrameWidth/2, y=cam1FrameHeight/2, anchor="center")
-lmain2.place(x=camFrameWidth/2, y=cam2FrameHeight/2-20, anchor="center")
+lmain2.place(x=camFrameWidth/2, y=cam2FrameHeight/2-70, anchor="center")
 lslave.place(x=20, y=cam1FrameHeight/2, anchor="w")
 lOptions.place(x=20, y=cam1FrameHeight/2+30, anchor="w")
-lslave2.place(x=20, y=cam2FrameHeight/2, anchor="w")
-lOptions2.place(x=20, y=cam2FrameHeight/2+30, anchor="w")
+lslave2.place(x=20, y=cam2FrameHeight/2-50, anchor="w")
+lOptions2.place(x=20, y=cam2FrameHeight/2-20, anchor="w")
 labelTitle = Label(frame, text="Eye Tracker",font=("Times New Roman",30))
-labelTitle.place(x=menuFrameWidth/2,y=80,anchor="center")
+labelTitle.place(x=menuFrameWidth/2,y=30,anchor="center")
+lslave3.place(x=20, y=cam2FrameHeight/2+50, anchor="w")
+htScale.place(x=20, y=cam2FrameHeight/2+80, anchor="w")
+htScale2.place(x=20, y=cam2FrameHeight/2+130, anchor="w")
+wdScale.place(x=20, y=cam2FrameHeight/2+180, anchor="w")
+wdScale2.place(x=20, y=cam2FrameHeight/2+230, anchor="w")
 
 
 beaconCount=StringVar()
@@ -279,6 +304,7 @@ startCamera.place(x=menuFrameWidth/2,y=menuFrameHeight/2,anchor="center")
 
 startCalibration = Button(frame,command=initCalib,text="Start calibration")
 startCalibration.place(x=menuFrameWidth/2,y=menuFrameHeight/2+30,anchor="center")
+
 
 
 
