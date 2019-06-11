@@ -217,8 +217,8 @@ def initCams():
         cap2 = cv2.VideoCapture(int(camVar2.get()[-1])-1)
         cap.set(3,640)
         cap.set(4,480)
-        #cap2.set(3,1280)
-        #cap2.set(4,720)
+        cap2.set(3,1280)
+        cap2.set(4,720)
         if not execStarted:    
             show_frame()
     except Exception as e:
@@ -303,7 +303,7 @@ def show_frame():
         eMax=None
         for c in contours:
             try:
-                if cv2.contourArea(c) > 2000:
+                if cv2.contourArea(c) > 8000:
                     testTemp=np.zeros(np.shape(frame),np.uint8)
                     gray=np.zeros(np.shape(frame),np.uint8)
                                 
@@ -388,15 +388,15 @@ lOptions2 = OptionMenu(frame3,camVar2,*cams)
 
 thresholdSlider=Scale(frame3,from_=40,to=80, orient=HORIZONTAL)
 lslave3 = Label(frame3,text="Boundary adjustment",font=("Times New Roman",16))
-htScale=Scale(frame3,from_=0,to=960, orient=HORIZONTAL)
-htScale2=Scale(frame3,from_=0,to=960, orient=HORIZONTAL)
-wdScale=Scale(frame3,from_=0,to=960, orient=HORIZONTAL)
-wdScale2=Scale(frame3,from_=0,to=960, orient=HORIZONTAL)
+htScale=Scale(frame3,from_=0,to=1280, orient=HORIZONTAL)
+htScale2=Scale(frame3,from_=0,to=1280, orient=HORIZONTAL)
+wdScale=Scale(frame3,from_=0,to=720, orient=HORIZONTAL)
+wdScale2=Scale(frame3,from_=0,to=720, orient=HORIZONTAL)
 #[180:855,370:850]
-htScale.set(370)
-htScale2.set(850)
-wdScale.set(310)
-wdScale2.set(855)
+htScale.set(395)
+htScale2.set(941)
+wdScale.set(95)
+wdScale2.set(720)
 thresholdSlider.set(65)
 
 
