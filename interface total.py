@@ -6,7 +6,7 @@ Created on Sun Mar 24 21:16:36 2019
 """
 from tkinter import *
 import PIL
-from PIL import Image,ImageTk
+from PIL import ImageTk#,Image
 import time
 #import tensorflow as tf
 import csv
@@ -19,17 +19,17 @@ from itertools import chain
 
 
 from keras.models import Sequential
-from keras.layers import Dense,Dropout
+from keras.layers import Dense#,Dropout
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.metrics import confusion_matrix
+
+from concurrent.futures import ThreadPoolExecutor
 
 import sys,os
 sys.path.append("/usr/local/lib/python3.7/site-packages")
 import cv2
 cv2.__version__
 
-
+deletethis=0
 
 height=1080
 width=1920
@@ -54,7 +54,7 @@ maxC=None
 
 warningMessage="Tracking beacons: "
 
-cams=["Camera 2","Camera 1"]
+cams=["Camera 1","Camera 2"]
 cap=None
 cap2=None
 execStarted=False
@@ -66,7 +66,7 @@ gTruthY=0
 gPredX=0
 gPredY=0
 
-
+executor=ThreadPoolExecutor(max_workers=1)
 
 htScale=None
 wdScale=None
@@ -116,7 +116,7 @@ def initCalib():
     def displayDots():
         global isCalibrating,gTruthX,gTruthY,model,writeFile,writer,trainingComplete
         nonlocal waitVar,pointer
-        writeFile=open('calib-temp.csv', 'a+')#remnve this
+        writeFile=open('calib.csv', 'a+')#remnve this
         writer = csv.writer(writeFile)
         isCalibrating=True
         canvas = Canvas(root2, width=width, height=height, borderwidth=0, highlightthickness=0, bg="black")
@@ -124,6 +124,7 @@ def initCalib():
         quitButton=Button(canvas, text="Quit", command=lambda:[root2.destroy(),quitThisMethod()])
         quitButton.place(x=width/2,y=height-80,anchor="center")
         pointer=None
+        start = time.time()
         for i in range (5):
             for j in range (4):   
                 x=width*i/4
@@ -132,19 +133,21 @@ def initCalib():
                 gTruthX=x
                 gTruthY=y
                 pointer=canvas.create_oval(x-10, y-10, x+10, y+10, outline="#f11",fill="#1f1", width=2)
-                root2.after(1, temp)#REMOVE THIS
+                root2.after(6000, temp)#REMOVE THIS
                 root2.wait_variable(waitVar)
                 root2.update()
-                
+        end=time.time()
         canvas.delete(pointer)
         isCalibrating=False
         writeFile.close()
-        dataframe=read_csv("calib-old.csv")
+        for i in range(100):
+            print((end-start))
+        dataframe=read_csv("calib.csv")
         
         X=dataframe.iloc[:,0:8].values
         y=dataframe.iloc[:,8:10].values
         
-        X_train,X_test,y_train,y_test=train_test_split(X,y,test_size=0.2,random_state=0)
+        X_train,X_test,y_train,y_test=train_test_split(X,y,test_size=0.05,random_state=0)
             
         model=Sequential()
         model.add(Dense(8,input_dim=8,kernel_initializer='normal', activation='sigmoid'))
@@ -158,7 +161,6 @@ def initCalib():
             model.fit(X_train,y_train,validation_data=(X_test,y_test),batch_size=16,epochs=350)
         
         y_pred=model.predict(np.array(X_test))
-        mse = (np.square(y_pred - y_test)).mean(axis=0)
         
         
         
@@ -184,13 +186,13 @@ def initCalib():
         
         while(trainingComplete):
             if gPredX<0:
-                gPrexX=0
+                gPredX=0
             if gPredY<0:
-                gPrexY=0
+                gPredY=0
             if gPredY>1:
-                gPrexY=1
+                gPredY=1
             if gPredX>1:
-                gPrexX=1
+                gPredX=1
             test+=1
 #            root2.after(4000, temp)
             root2.update()
@@ -218,13 +220,13 @@ def initCams():
     try:
         cap = cv2.VideoCapture(int(camVar.get()[-1])-1)
         cap2 = cv2.VideoCapture(int(camVar2.get()[-1])-1)
-        cap.set(3,640)
-        cap.set(4,480)
+        cap.set(3,cWidth)
+        cap.set(4,cHeight)
         cap2.set(3,1280)
         cap2.set(4,720)
         if not execStarted:    
-            show_frame()
-    except Exception as e:
+            executor.map(show_frame())
+    except Exception:
         exc_type, exc_obj, exc_tb = sys.exc_info()
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
         print("EXCP HERE",exc_type, fname, exc_tb.tb_lineno)
@@ -235,18 +237,24 @@ def distance(p1,p2):
     return math.sqrt( ((p1[0]-p2[0])**2)+((p1[1]-p2[1])**2))
 
 def show_frame():
-    global oldContour,maxC,csvIndex,gTruthX,gTruthY,writer,isCalibrating,gPredX,gPredY,trainingComplete,model
-
+    global oldContour,maxC,csvIndex,gTruthX,gTruthY,writer,isCalibrating,gPredX,gPredY,trainingComplete,model,executor,deletethis
+    wTemp=wdScale2.get()-wdScale.get()
+    hTemp=htScale2.get()-htScale.get()
+    deletethis+=1
+    print('here',deletethis)
     try:
-        row=[]
         _, frameDisp = cap.read()
+        _, frameDisp2 = cap2.read()
+        
+        
+        row=[]
         hsv = cv2.cvtColor(frameDisp, cv2.COLOR_BGR2GRAY)#
         mask = cv2.inRange(hsv, lower_white, upper_white)   
         contours,heih = cv2.findContours(mask,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
         count=0
         row=[]
         for c in contours:
-           if cv2.contourArea(c) > 100:
+           if cv2.contourArea(c) > 50:
                M = cv2.moments(c)
                if M["m00"] != 0:
                  cX = int(M["m10"] / M["m00"])
@@ -282,9 +290,6 @@ def show_frame():
     
     
     
-    
-        
-        _, frameDisp2 = cap2.read()    
         
         frame=frameDisp2[wdScale.get():wdScale2.get(),htScale.get():htScale2.get()]
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -294,7 +299,6 @@ def show_frame():
         contours, heih = cv2.findContours(thresh,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
         
         
-        total=np.zeros(np.shape(frame),np.uint8)
         foundC=False
         '''
         try:
@@ -336,7 +340,7 @@ def show_frame():
             cv2.ellipse(frame, eMax, (0,255,255),1)
             xTemp=eMax[0][0]
             yTemp=eMax[0][1]
-            row.extend([(xTemp/width-0.5)*2,(yTemp/height-0.5)*2])
+            row.extend([(xTemp/wTemp-0.5)*2,(yTemp/hTemp-0.5)*2])
         else:
             row=[]
         frameDisp2 = cv2.rotate(frame,rotateCode=cv2.ROTATE_90_CLOCKWISE)
@@ -350,24 +354,26 @@ def show_frame():
                     #row.extend([gTruthX/width,gTruthY/height])
                     row.extend([(gTruthX/width-0.5)*2,(gTruthY/height-0.5)*2])
                     writer.writerow(row)
-                    print(row)
+                    #print(row)
                 except Exception as e:
                     print(e)
+            print(row)
         else:
             pass
         if trainingComplete and len(row)==8:
             result=model.predict(np.array([row]))
             gPredX,gPredY=result[0][0],result[0][1]
-            print("RESULTANT COORD:",width*(gPredX+1)/2,"  ",height*(gPredY+1)/2)
+            #print("RESULTANT COORD:",width*(gPredX+1)/2,"  ",height*(gPredY+1)/2)
             
-        lmain.after(10, show_frame)
+        lmain.after(1, callShowFrame)
     except Exception as e:
         exc_type, exc_obj, exc_tb = sys.exc_info()
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
         print(e)
         print("EXCP HERE2",exc_type, fname, exc_tb.tb_lineno, traceback.print_exc())
         print(traceback.format_exc())
-
+def callShowFrame():
+    executor.map(show_frame())
 root=Tk()
 #root.attributes("-fullscreen", True)
 root.bind('<Escape>', lambda e: root.quit())
@@ -390,7 +396,7 @@ camVar2 = StringVar(frame3)
 camVar2.set(cams[1])
 lOptions2 = OptionMenu(frame3,camVar2,*cams)
 
-thresholdSlider=Scale(frame3,from_=40,to=80, orient=HORIZONTAL)
+thresholdSlider=Scale(frame3,from_=10,to=80, orient=HORIZONTAL)
 lslave3 = Label(frame3,text="Boundary adjustment",font=("Times New Roman",16))
 htScale=Scale(frame3,from_=0,to=1280, orient=HORIZONTAL)
 htScale2=Scale(frame3,from_=0,to=1280, orient=HORIZONTAL)
