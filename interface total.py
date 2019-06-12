@@ -29,7 +29,6 @@ sys.path.append("/usr/local/lib/python3.7/site-packages")
 import cv2
 cv2.__version__
 
-deletethis=0
 
 height=1080
 width=1920
@@ -106,14 +105,19 @@ def initCalib():
 
     	
     def temp():
-        nonlocal waitVar
-        waitVar.set(True)
+        try:
+            nonlocal waitVar
+            print('reached temp')
+            waitVar.set(True)
+        except:
+            print('temp failed')
     def quitThisMethod():
         global isCalibrating,trainingComplete
         isCalibrating=False
         writeFile.close()
         
-    def displayDots():
+    def displayDots(): 
+        print('reached here1')
         global isCalibrating,gTruthX,gTruthY,model,writeFile,writer,trainingComplete
         nonlocal waitVar,pointer
         writeFile=open('calib.csv', 'a+')#remnve this
@@ -121,21 +125,35 @@ def initCalib():
         isCalibrating=True
         canvas = Canvas(root2, width=width, height=height, borderwidth=0, highlightthickness=0, bg="black")
         canvas.place(x=width/2,y=height/2,anchor="center")
+        print('reached here2')
         quitButton=Button(canvas, text="Quit", command=lambda:[root2.destroy(),quitThisMethod()])
         quitButton.place(x=width/2,y=height-80,anchor="center")
-        pointer=None
+        pointer=canvas.create_oval(0,0,0,0,outline="#f11",fill="#1f1", width=2)
         start = time.time()
         for i in range (5):
-            for j in range (4):   
+            for j in range (4):  
+                print('reached here3')
                 x=width*i/4
                 y=height*j/3
+                print('reached here4')
                 canvas.delete(pointer)
+                print('reached here5')
                 gTruthX=x
                 gTruthY=y
                 pointer=canvas.create_oval(x-10, y-10, x+10, y+10, outline="#f11",fill="#1f1", width=2)
-                root2.after(6000, temp)#REMOVE THIS
+                root2.after(500, temp)#REMOVE THIS
+                print('reached here6')
                 root2.wait_variable(waitVar)
-                root2.update()
+                print('reached here7')
+                try:
+                    root2.update()
+                except Exception as e:
+                    exc_type, exc_obj, exc_tb = sys.exc_info()
+                    fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                    print(e)
+                    print("EXCP HERE333",exc_type, fname, exc_tb.tb_lineno, traceback.print_exc())
+                    print(traceback.format_exc())
+                print('reached here8')
         end=time.time()
         canvas.delete(pointer)
         isCalibrating=False
@@ -237,11 +255,9 @@ def distance(p1,p2):
     return math.sqrt( ((p1[0]-p2[0])**2)+((p1[1]-p2[1])**2))
 
 def show_frame():
-    global oldContour,maxC,csvIndex,gTruthX,gTruthY,writer,isCalibrating,gPredX,gPredY,trainingComplete,model,executor,deletethis
+    global oldContour,maxC,csvIndex,gTruthX,gTruthY,writer,isCalibrating,gPredX,gPredY,trainingComplete,model,executor
     wTemp=wdScale2.get()-wdScale.get()
     hTemp=htScale2.get()-htScale.get()
-    deletethis+=1
-    print('here',deletethis)
     try:
         _, frameDisp = cap.read()
         _, frameDisp2 = cap2.read()
@@ -357,7 +373,7 @@ def show_frame():
                     #print(row)
                 except Exception as e:
                     print(e)
-            print(row)
+            #print(row)
         else:
             pass
         if trainingComplete and len(row)==8:
@@ -365,7 +381,7 @@ def show_frame():
             gPredX,gPredY=result[0][0],result[0][1]
             #print("RESULTANT COORD:",width*(gPredX+1)/2,"  ",height*(gPredY+1)/2)
             
-        lmain.after(1, callShowFrame)
+        lmain.after(10, callShowFrame)
     except Exception as e:
         exc_type, exc_obj, exc_tb = sys.exc_info()
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
