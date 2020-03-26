@@ -1,130 +1,176 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Mon Jun 10 23:19:14 2019
+Created on Sat Mar 21 18:06:03 2020
 
 @author: ashay
 """
-import numpy as np
-from matplotlib import pyplot as pltq
 
-import sys,os
-sys.path.append("/usr/local/lib/python3.7/site-packages")
+'''
 import cv2
+import time
+cap = cv2.VideoCapture(0)
 
-import random as rng
-rng.seed(12345)
+frame2=None
+cap.set(cv2.CAP_PROP_FPS,30)
+cap.set(3,1280)
+cap.set(4,720)
 
-'''
-src=cv2.imread('images/test1.jpg',0)
-canny=cv2.Canny(src,20,100)
-canny2=canny
-contours, _ = cv2.findContours(canny,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
-minRect = [None]*len(contours)
-minEllipse = [None]*len(contours)
-for i, c in enumerate(contours):
-    minRect[i] = cv2.minAreaRect(c)
-    if c.shape[0] > 5:
-        minEllipse[i] = cv2.fitEllipse(c)
-# Draw contours + rotated rects + ellipses
+def test():
+    global frame2
+    cv2.imshow('frame',frame2)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        return 0
 
-drawing = np.zeros((canny.shape[0], canny.shape[1], 3), dtype=np.uint8)
-for i, c in enumerate(contours):
-    color = (rng.randint(0,256), rng.randint(0,256), rng.randint(0,256))
-    # contour
-    cv2.drawContours(drawing, contours, i, color)
-    # ellipse
-    if c.shape[0] > 5:
-        cv2.ellipse(drawing, minEllipse[i], color, 2)
-    # rotated rectangle
-    box = cv2.boxPoints(minRect[i])
-    box = np.intp(box) #np.intp: Integer used for indexing (same as C ssize_t; normally either int32 or int64)
-    cv2.drawContours(drawing, [box], 0, color)
-    cv2.drawContours(canny, [box], 0, color)
-cv2.imshow('image',drawing)
-cv2.imshow('og',canny)
-cv2.imshow('og2',canny2)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
-'''
-def findCent(box):
-    x=0
-    y=0
-    for tup in box:
-       x+=tup[0]
-       y+=tup[1]
-    x/=len(box)
-    y/=len(box)
-    return (int(x),int(y))
-frame=cv2.imread('images/test3.jpg')
+t1=time.time()
+i=0
+while True:
+    # Capture frame-by-frame
+    ret, frame = cap.read()
+    # Our operations on the frame come here
+    i+=1
+    frame2=frame.copy()
+    # Display the resulting frame
+    test()
+    
+    if i==3000:
+        break
+t2=time.time()
 
-gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-gray=cv2.medianBlur(gray,3)
-#    //75 decent, eyelash interfering
-ret,thresh = cv2.threshold(gray,59,255,cv2.THRESH_BINARY_INV)
-contours, heih = cv2.findContours(thresh,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
-#contours, heih = cv2.findContours(canny,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+print(t2-t1)
 
-ratMax=0
-cMax=None
-eMax=None
-total=np.zeros(np.shape(frame),np.uint8)
-for c in contours:
-   if cv2.contourArea(c) > 1000:
-       testTemp=np.zeros(np.shape(frame),np.uint8)
-       gray=np.zeros(np.shape(frame),np.uint8)
-       '''
-       kpCnt=len(c)
-       x=0
-       y=0
-       for kp in c:
-           x=x+kp[0][0]
-           y=y+kp[0][1]
-       x1=(np.uint8(np.ceil(x/kpCnt)))
-       y1=np.uint8(np.ceil(y/kpCnt))
-       
-       #cv2.bitwise_and()
-       #cv2.drawContours(testTemp, c, -1,(0,0,255), 1)
-       #rect = cv2.minAreaRect(c)
-       #box = cv2.boxPoints(rect)
-       #box = np.int0(box)
-       #cv2.drawContours(test,[box],0,(0,0,255),2)
-       #(x,y)=findCent(box)
-       #dist = np.sqrt( (x - x1)**2 + (y - y1)**2 )
-       '''
-       
-       cv2.fillPoly(testTemp,pts=[c],color=(255,255,255))
-       ellipse=cv2.fitEllipse(c)
-       cv2.ellipse(gray, ellipse, (255,255,255),-1)
-       testTemp=cv2.bitwise_and(testTemp,gray)
-       
-       '''
-       #cv2.circle(test,(x,y),1, (255, 0, 0), 3)
-       #cv2.circle(test, (np.uint8(np.ceil(x/kpCnt)), np.uint8(np.ceil(y/kpCnt))), 1, (255, 255, 255), 3)
-       #cv2.ellipse(testTemp2, ellipse, (0,255,255),-1)
-       #cv2.fillPoly(testTemp2,pts=[c],color=(0,0,255))
-       #total=cv2.bitwise_or(testTemp,total)
-       '''
-       
-       total=cv2.bitwise_or(testTemp,total)
-       
-       rat=cv2.countNonZero(cv2.cvtColor(testTemp,cv2.COLOR_BGR2GRAY))/(3.14*ellipse[1][0]/2*ellipse[1][1]/2)
-       print(rat)
-       if(rat>ratMax):
-           ratMax=rat
-           cMax=c
-           eMax=ellipse
-       '''
-       if dist<distMin: #ALSO ACCOUNT FOR THE NUMBER OF PIXELS FILLED VS UNFILLED
-           distMin=dist
-           cMain=c
-       '''
-       
-cv2.drawContours(frame,cMax,-1,(0,255,0),1)
-cv2.ellipse(frame, eMax, (0,255,255),1)
-#cv2.drawContours(frame, contours, -1,(0,255,0), 1)
-cv2.imshow('image',frame)
-cv2.imshow('image2',total)
-cv2.waitKey(0)
+
+
+
+
+# When everything done, release the capture
+cap.release()
 cv2.destroyAllWindows()
 
+'''
+'''
+
+
+
+import queue
+import time, threading
+from random import *
+
+from concurrent.futures import ThreadPoolExecutor
+
+executor=ThreadPoolExecutor(max_workers=50)    
+
+
+q=queue.Queue()
+
+for i in range (200000):
+    q.put(i)
+    
+def test():
+    t=q.get()
+    #time.sleep(randint(0,6)/2)
+    print(t,threading.current_thread())
+    if q.empty():
+        print('shuttin down')
+        executor.shutdown(wait=True)
+        print('complete')
+    
+while not q.empty():
+    executor.submit(test)
+    
+#executor.shutdown(wait=True)
+    
+'''
+'''
+import cv2, queue, threading
+from concurrent.futures import ThreadPoolExecutor
+
+
+
+#lock=threading.Lock()
+q=queue.Queue()
+cap=cv2.VideoCapture('/Users/ashay/Desktop/test.mp4')
+print('starting exec')
+i=0
+if (cap.isOpened()== False): 
+
+  print("Error opening video stream or file")
+
+while(cap.isOpened()):
+    
+    ret, frame=cap.read()                            
+    if ret==True:
+        q.put(frame)    
+    else:
+        break
+    
+print('done storing in q')
+
+def test():
+    global i,q,lock
+    frame=q.get()
+    #lock.acquire()
+    i+=1
+    print(i,threading.current_thread())
+    cv2.imwrite('/Users/ashay/Desktop/Temp/img'+str(i)+'.jpg',frame)
+    #lock.release()
+    return
+    
+with ThreadPoolExecutor(max_workers=5) as executor:
+    while not q.empty():
+        executor.submit(test)
+
+print('waiting')
+cap.release()
+cv2.destroyAllWindows()
+    
+'''
+'''
+
+import threading
+from concurrent.futures import ThreadPoolExecutor
+import queue
+
+q=queue.Queue()
+q2=queue.Queue()
+executor=ThreadPoolExecutor(max_workers=4)
+for i in range (100):
+    q.put(i)
+    q2.put(100-i)
+    
+def test(x,y):
+    global q
+    print(x,y)
+    
+    if q.empty():
+        executor.shutdown(wait=True)
+    
+    
+
+while not q.empty() and not q2.empty():
+    executor.submit(test,q.get(),q2.get())
+
+
+print('waiting')
+executor.shutdown(wait=False)
+print('done')
+'''
+import sys,os,traceback,time
+from concurrent.futures import ThreadPoolExecutor
+
+
+def startLoggingCalibFrames_HTC():
+    while True:
+        time.sleep(0.1)
+        print('test)')
+
+
+exec1=ThreadPoolExecutor(max_workers=1)
+
+exec1.submit(startLoggingCalibFrames_HTC)
+
+for i in range(10):
+    if i==9:
+        exec1.shutdown()
+    print(i)
+    time.sleep(0.5)
