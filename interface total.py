@@ -180,6 +180,7 @@ def initCalib():
         pointer=canvas.create_oval(0,0,0,0,outline="#f11",fill="#1f1", width=2)
         for i in range (5):
             for j in range (4):  
+                print('reached here',i,j)
                 x=width*i/4
                 y=height*j/3
                 canvas.delete(pointer)
@@ -187,7 +188,11 @@ def initCalib():
                 gTruthY=y
                 pointer=canvas.create_oval(x-10, y-10, x+10, y+10, outline="#f11",fill="#1f1", width=2)
                 root2.after(timePerDot, setWaitVarTrue)
+                print('waiting')
                 root2.wait_variable(waitVar)
+                print('done waiting')
+                
+                
                 try:
                     root2.update()
                 except Exception as e:
@@ -196,7 +201,10 @@ def initCalib():
                     print(e)
                     print("EXCP HERE333",exc_type, fname, exc_tb.tb_lineno, traceback.print_exc())
                     print(traceback.format_exc())
+                
+                print('we at thge end of this loop')
         
+        print('we out of this loop')
         canvas.delete(pointer)
         isCalibrating=False
         executor.submit(show_frame)
@@ -565,15 +573,19 @@ def show_frame():
             result=model.predict(np.array([row]))
             gPredX,gPredY=result[0][0],result[0][1]
             #print("RESULTANT COORD:",width*(gPredX+1)/2,"  ",height*(gPredY+1)/2)
-            
+        if keepLogging:
+            lmain.after(1, callShowFrame)
     except Exception as e:
         exc_type, exc_obj, exc_tb = sys.exc_info()
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
         print(e)
         print("EXCP HERE2",exc_type, fname, exc_tb.tb_lineno, traceback.print_exc())
         print(traceback.format_exc())
+    
+    
+    '''temporary
     if keepLogging:
-        lmain.after(1, callShowFrame)
+        lmain.after(1, callShowFrame)'''
     
     
     

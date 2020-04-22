@@ -22,7 +22,7 @@ i=0
 while True:
     # Capture frame-by-frame
     ret, frame = cap.read()
-    cv2.findContours()
+    #cv2.findContours()
     # Our operations on the frame come here
     i+=1
     # Display the resulting frame
