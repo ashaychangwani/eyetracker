@@ -180,7 +180,6 @@ def initCalib():
         pointer=canvas.create_oval(0,0,0,0,outline="#f11",fill="#1f1", width=2)
         for i in range (5):
             for j in range (4):  
-                print('reached here',i,j)
                 x=width*i/4
                 y=height*j/3
                 canvas.delete(pointer)
@@ -188,9 +187,7 @@ def initCalib():
                 gTruthY=y
                 pointer=canvas.create_oval(x-10, y-10, x+10, y+10, outline="#f11",fill="#1f1", width=2)
                 root2.after(timePerDot, setWaitVarTrue)
-                print('waiting')
                 root2.wait_variable(waitVar)
-                print('done waiting')
                 
                 
                 try:
@@ -495,11 +492,12 @@ def show_frame():
             row.extend([-1,-1])
             count+=1
         
-        mask = cv2.flip(mask, -1)
-        img = PIL.Image.fromarray(mask)
-        imgtk = ImageTk.PhotoImage(image=img)
-        lmain.imgtk = imgtk
-        lmain.configure(image=imgtk)
+        if not isCalibrating:
+            mask = cv2.flip(mask, -1)
+            img = PIL.Image.fromarray(mask)
+            imgtk = ImageTk.PhotoImage(image=img)
+            lmain.imgtk = imgtk
+            lmain.configure(image=imgtk)
     
     
     
@@ -552,11 +550,12 @@ def show_frame():
             row.extend([(xTemp/wTemp-0.5)*2,(yTemp/hTemp-0.5)*2])
         else:
             row=[]
-        frameDisp2 = cv2.rotate(frame,rotateCode=cv2.ROTATE_90_CLOCKWISE)
-        img2 = PIL.Image.fromarray(frameDisp2)
-        imgtk2 = ImageTk.PhotoImage(image=img2)
-        lmain2.imgtk = imgtk2
-        lmain2.configure(image=imgtk2)
+        if not isCalibrating:
+            frameDisp2 = cv2.rotate(frame,rotateCode=cv2.ROTATE_90_CLOCKWISE)
+            img2 = PIL.Image.fromarray(frameDisp2)
+            imgtk2 = ImageTk.PhotoImage(image=img2)
+            lmain2.imgtk = imgtk2
+            lmain2.configure(image=imgtk2)
         if(isCalibrating):
             if(len(row)>3):
                 try:
@@ -567,8 +566,7 @@ def show_frame():
                 except Exception as e:
                     print(e)
             #print(row)
-        else:
-            pass
+            
         if trainingComplete and len(row)==8:
             result=model.predict(np.array([row]))
             gPredX,gPredY=result[0][0],result[0][1]
