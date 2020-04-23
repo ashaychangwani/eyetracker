@@ -25,7 +25,7 @@ import tensorflow as tf
 import traceback
 from itertools import chain
 
-from keras.models import Sequential
+from keras.models import Sequential,model_from_json
 from keras.layers import Dense,Dropout
 from sklearn.model_selection import train_test_split
 
@@ -46,7 +46,7 @@ cHeight=480
 cWidth=640
 
 
-timePerDot=1
+timePerDot=2
 
 camFrameWidth=width*0.7
 menuFrameWidth=width-camFrameWidth
@@ -71,6 +71,7 @@ cap2=None
 execStarted=False
 
 isCalibrating=False
+isTracking=False
 gTruthX=0
 gTruthY=0
 
@@ -162,13 +163,13 @@ def initCalib():
             
             
     def quitThisMethod():
-        global isCalibrating,trainingComplete,writeFile
+        global isCalibrating,trainingComplete,writeFile,isTracking
         isCalibrating=False
+        isTracking=False
         
-        writeFile.close()
         
     def displayDots(): 
-        global isCalibrating,gTruthX,gTruthY,model,writeFile,writer,trainingComplete,timePerDot,allFramesProcessed
+        global isCalibrating,gTruthX,gTruthY,model,writeFile,writer,trainingComplete,timePerDot,allFramesProcessed,isTracking
         nonlocal waitVar,pointer
         writeFile=open('calib.csv', 'a+')
         writer = csv.writer(writeFile)
@@ -200,62 +201,80 @@ def initCalib():
                     print("EXCP HERE333",exc_type, fname, exc_tb.tb_lineno, traceback.print_exc())
                     print(traceback.format_exc())
                 
-        print("reached here1")
         canvas.delete(pointer)
-        print("reached here2")
         isCalibrating=False
-        print("reached here3")
         writeFile.close()
-        print("reached here4")
+        '''
         dataframe=read_csv("calib.csv")
-        print("reached here5")
         
         X=dataframe.iloc[:,0:8].values
-        print("reached here6")
         y=dataframe.iloc[:,8:10].values
         
         X_train,X_test,y_train,y_test=train_test_split(X,y,test_size=0.1,random_state=0)
 
         model=Sequential()
-        model.add(Dense(8,input_dim=8,kernel_initializer='normal', activation='sigmoid'))
+        model.add(Dense(8,input_dim=8,kernel_initializer='normal', activation='tanh'))
         #model.add(Dropout(0.2))
-        model.add(Dense(22,kernel_initializer='normal', activation='sigmoid'))
+        model.add(Dense(22,kernel_initializer='normal', activation='tanh'))
         #model.add(Dropout(0.2))
         model.add(Dense(2,kernel_initializer='normal'))
         #model.compile(loss='mean_squared_error', optimizer='adam',metrics=['mse','accuracy'])
         model.compile(loss='mean_squared_error', optimizer='RMSProp',metrics=['mse'])
-        print("reached here7")
-        #with tf.device('/cpu:0'):
-        model.fit(X_train,y_train,validation_data=(X_test,y_test),batch_size=16,epochs=350)
-        print("reached here8")
+        with tf.device('/cpu:0'):
+            model.fit(X_train,y_train,validation_data=(X_test,y_test),batch_size=16,epochs=350)
+        
+        model_json = model.to_json()
+        with open("model.json", "w") as json_file:
+            json_file.write(model_json)
+        # serialize weights to HDF5
+        model.save_weights("model.h5")
+        print("Saved model to disk")
+        
+        '''
+        json_file = open('model.json', 'r')
+        loaded_model_json = json_file.read()
+        json_file.close()
+        model = model_from_json(loaded_model_json)
+        # load weights into new model
+        model.load_weights("model.h5")
+        print("Loaded model from disk")
+        
         
         #y_pred=model.predict(np.array(X_test))      UNUSED
         
         trainingComplete=True
-        #canvas.destroy()
+        canvas.destroy()
     
     def dispTracker():
-        global row2,gPredX,gPredY
+        global row2,gPredX,gPredY,trainingComplete,isTracking
         nonlocal pointer
-        canvas1=Canvas(root2, width=1920, height=1080, borderwidth=0, highlightthickness=0, bg="blue")
+        canvas1=Canvas(root2, width=1920, height=1080, borderwidth=0, highlightthickness=0, bg="red")
+        isTracking=True
         canvas1.place(x=width/2,y=height/2,anchor="center")
         qb=Button(canvas1,text="quit",command=root2.destroy)
         qb.place(x=width/2,y=height-80,anchor="center")
         test=0
         
         while(trainingComplete):
-            if gPredX<0:
-                gPredX=0
-            if gPredY<0:
-                gPredY=0
-            if gPredY>1:                #Check why neural network is giving less than 0 and more than 1
+            if gPredX<-1:
+                gPredX=-1
+            if gPredY<-1:
+                gPredY=-1
+            if gPredY>1:                
                 gPredY=1
             if gPredX>1:
                 gPredX=1
             test+=1
-            root2.update()
             canvas1.delete(pointer)
             pointer=canvas1.create_oval(int((gPredX+1)/2*width-50), int((gPredY+1)/2*height-50), int((gPredX+1)/2*width+50), int((gPredY+1)/2*height+50), outline="#f11",fill="#1f1", width=2)
+            try:
+                root2.update()
+            except Exception as e:
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                print(e)
+                print("EXCP HERE333",exc_type, fname, exc_tb.tb_lineno, traceback.print_exc())
+                print(traceback.format_exc())
             
             
     frame = Frame(root2, width=width, height=height,bg='Red')
@@ -270,13 +289,15 @@ def initCalib():
     
     
 def startCalibrationProcessing():
-    global HTCFrame, ITCFrame, calibExecutor, isCalibrating, gTruthX, gPredY
+    global HTCFrame, ITCFrame, calibExecutor, isCalibrating, gTruthX, gPredY, isTracking
     
     while isCalibrating:
         calibExecutor.submit(ProcessingFn,HTCFrame.copy(),ITCFrame.copy(),gTruthX, gTruthY)
         time.sleep(1/30)
         
-    if not isCalibrating:
+   # while isTracking:
+        #calibExecutor.submit(TrackingFn,HTCFrame.copy(),ITCFrame.copy(),gTruthX, gTruthY)
+    if not isCalibrating and not isTracking:
         print('waiting for executor to shut down')
         #executor.shutdown(wait=True)
         print('executor shutdown')
@@ -411,20 +432,24 @@ def ProcessingFn(frame,frame2,gTruthX, gTruthY):
 
     
 def initCams():
-    global cap,cap2,execStarted
+    global cap,cap2,execStarted, keepLogging,isTracking,isCalibrating
+    isTracking=False
+    isCalibrating=False
     try:
+        keepLogging=False
         cap = cv2.VideoCapture(int(camVar.get()[-1])-1)
         cap2 = cv2.VideoCapture(int(camVar2.get()[-1])-1)
         cap.set(3,cWidth)
         cap.set(4,cHeight)
         cap2.set(3,1280)
         cap2.set(4,720)
+        keepLogging=True
         if not execStarted:    
+            execStarted=True
             HTCExecutor.submit(startLoggingCalibFrames_HTC)
             ITCExecutor.submit(startLoggingCalibFrames_ITC)
             time.sleep(1)
             executor.map(show_frame())
-            execStarted=True
     except Exception:
         exc_type, exc_obj, exc_tb = sys.exc_info()
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
@@ -436,37 +461,39 @@ def distance(p1,p2):
 
 
 def startLoggingCalibFrames_HTC():
-    global cap, HTCFrame,keepLogging
+    global cap, HTCFrame,keepLogging,execStarted
    
-    try:
-        while keepLogging:
-            _, frame=cap.read()
-            HTCFrame=frame.copy()
+    while execStarted:
+        if keepLogging:
+            try:
+                _, frame=cap.read()
+                HTCFrame=frame.copy()
         
-    except Exception as e:
-        exc_type, exc_obj, exc_tb = sys.exc_info()
-        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-        print(e)
-        print("EXCP in startLoggingCalibFrames_HTC",exc_type, fname, exc_tb.tb_lineno, traceback.print_exc())
-        print(traceback.format_exc())
+            except Exception as e:
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                print(e)
+                print("EXCP in startLoggingCalibFrames_HTC",exc_type, fname, exc_tb.tb_lineno, traceback.print_exc())
+                print(traceback.format_exc())
 
 
 
 def startLoggingCalibFrames_ITC():
-    global cap2, ITCFrame,keepLogging
+    global cap2, ITCFrame,keepLogging,execStarted
    
-    try:
-        while keepLogging:
-            _, frame=cap2.read()
-            ITCFrame=frame.copy()
-        
+    while execStarted:
+        if keepLogging:
+            try:
+                _, frame=cap2.read()
+                ITCFrame=frame.copy()
     
-    except Exception as e:
-        exc_type, exc_obj, exc_tb = sys.exc_info()
-        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-        print(e)
-        print("EXCP in startLoggingCalibFrames_ITC",exc_type, fname, exc_tb.tb_lineno, traceback.print_exc())
-        print(traceback.format_exc())
+
+            except Exception as e:
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                print(e)
+                print("EXCP in startLoggingCalibFrames_ITC",exc_type, fname, exc_tb.tb_lineno, traceback.print_exc())
+                print(traceback.format_exc())
 
 
 
@@ -477,7 +504,7 @@ def startLoggingCalibFrames_ITC():
 Runs constantly, constantly updates the values of gPred and accepts values of gTruth etc 
 '''
 def show_frame():
-    global gTruthX,gTruthY,writer,isCalibrating,gPredX,gPredY,trainingComplete,model,HTCFrame,ITCFrame
+    global gTruthX,gTruthY,writer,isCalibrating,gPredX,gPredY,trainingComplete,model,HTCFrame,ITCFrame,isTracking
     wTemp=wdScale2.get()-wdScale.get()
     hTemp=htScale2.get()-htScale.get()
     try:
@@ -522,7 +549,7 @@ def show_frame():
             count+=1
             
             
-        if not isCalibrating:
+        if not isCalibrating and not isTracking:
             mask = cv2.flip(mask, -1)
             img = PIL.Image.fromarray(mask)
             imgtk = ImageTk.PhotoImage(image=img)
@@ -586,7 +613,7 @@ def show_frame():
             
         else:
             row=[]
-        if not isCalibrating:
+        if not isCalibrating and not isTracking:
             frameDisp2 = cv2.rotate(frame,rotateCode=cv2.ROTATE_90_CLOCKWISE)
             img2 = PIL.Image.fromarray(frameDisp2)
             imgtk2 = ImageTk.PhotoImage(image=img2)
