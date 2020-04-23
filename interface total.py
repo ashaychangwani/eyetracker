@@ -33,6 +33,8 @@ from concurrent.futures import ThreadPoolExecutor
 
 import sys,os
 sys.path.append("/usr/local/lib/python3.7/site-packages")
+import tensorflow as tf
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 import cv2
 
 #########           Setting up the interface, constants            ###########
@@ -44,7 +46,7 @@ cHeight=480
 cWidth=640
 
 
-timePerDot=1000
+timePerDot=1
 
 camFrameWidth=width*0.7
 menuFrameWidth=width-camFrameWidth
@@ -170,13 +172,13 @@ def initCalib():
         nonlocal waitVar,pointer
         writeFile=open('calib.csv', 'a+')
         writer = csv.writer(writeFile)
-        isCalibrating=True
-        executor.submit(startCalibrationProcessing)
         canvas = Canvas(root2, width=width, height=height, borderwidth=0, highlightthickness=0, bg="black")
         canvas.place(x=width/2,y=height/2,anchor="center")
         quitButton=Button(canvas, text="Quit", command=lambda:[root2.destroy(),quitThisMethod()])
         quitButton.place(x=width/2,y=height-80,anchor="center")
         pointer=canvas.create_oval(0,0,0,0,outline="#f11",fill="#1f1", width=2)
+        isCalibrating=True
+        executor.submit(startCalibrationProcessing)
         for i in range (5):
             for j in range (4):  
                 x=width*i/4
@@ -198,16 +200,18 @@ def initCalib():
                     print("EXCP HERE333",exc_type, fname, exc_tb.tb_lineno, traceback.print_exc())
                     print(traceback.format_exc())
                 
-                print('we at thge end of this loop')
-        
-        print('we out of this loop')
+        print("reached here1")
         canvas.delete(pointer)
+        print("reached here2")
         isCalibrating=False
-        executor.submit(show_frame)
+        print("reached here3")
         writeFile.close()
+        print("reached here4")
         dataframe=read_csv("calib.csv")
+        print("reached here5")
         
         X=dataframe.iloc[:,0:8].values
+        print("reached here6")
         y=dataframe.iloc[:,8:10].values
         
         X_train,X_test,y_train,y_test=train_test_split(X,y,test_size=0.1,random_state=0)
@@ -220,13 +224,15 @@ def initCalib():
         model.add(Dense(2,kernel_initializer='normal'))
         #model.compile(loss='mean_squared_error', optimizer='adam',metrics=['mse','accuracy'])
         model.compile(loss='mean_squared_error', optimizer='RMSProp',metrics=['mse'])
-        with tf.device('/cpu:0'):
-            model.fit(X_train,y_train,validation_data=(X_test,y_test),batch_size=16,epochs=350)
+        print("reached here7")
+        #with tf.device('/cpu:0'):
+        model.fit(X_train,y_train,validation_data=(X_test,y_test),batch_size=16,epochs=350)
+        print("reached here8")
         
         #y_pred=model.predict(np.array(X_test))      UNUSED
         
         trainingComplete=True
-        canvas.destroy()
+        #canvas.destroy()
     
     def dispTracker():
         global row2,gPredX,gPredY
@@ -272,7 +278,7 @@ def startCalibrationProcessing():
         
     if not isCalibrating:
         print('waiting for executor to shut down')
-        executor.shutdown(wait=True)
+        #executor.shutdown(wait=True)
         print('executor shutdown')
         print('waiting for calibExecutor to shut down')
         calibExecutor.shutdown(wait=True)
@@ -338,6 +344,7 @@ def ProcessingFn(frame,frame2,gTruthX, gTruthY):
         foundC=False
         ratMax=0
         eMax=None
+        cMax=None
         for c in contours:
             try:
                 if cv2.contourArea(c) > 8000:
@@ -354,16 +361,28 @@ def ProcessingFn(frame,frame2,gTruthX, gTruthY):
                     gray=None
                     if(rat>ratMax and rat>0.75):
                        ratMax=rat
+                       cMax=c
                        eMax=ellipse
                        foundC=True
-            except:
-                pass
+            except Exception as e:        
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                print(e)
+                print("exception in Processing Fn",exc_type, fname, exc_tb.tb_lineno, traceback.print_exc())
+                print(traceback.format_exc())
         
                     
+                    
         if(foundC):
-            xTemp=eMax[0][0]
-            yTemp=eMax[0][1]
+            
+            M = cv2.moments(cMax)
+            if M["m00"] != 0:
+                cX = int(M["m10"] / M["m00"])
+                cY = int(M["m01"] / M["m00"])
+            xTemp=(eMax[0][0]+cX)/2
+            yTemp=(eMax[0][1]+cY)/2
             row.extend([(xTemp/wTemp-0.5)*2,(yTemp/hTemp-0.5)*2])
+            
         else:
             row=[]
         if(len(row)>3):
@@ -372,8 +391,13 @@ def ProcessingFn(frame,frame2,gTruthX, gTruthY):
                 writerLock.acquire()
                 writer.writerow(row)
                 writerLock.release()
-            except Exception as e:
+            except Exception as e:        
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
                 print(e)
+                print("exception in Processing Fn 2",exc_type, fname, exc_tb.tb_lineno, traceback.print_exc())
+                print(traceback.format_exc())
+        
             
     
     except Exception as e:
@@ -512,7 +536,6 @@ def show_frame():
         frame=frameDisp2[wdScale.get():wdScale2.get(),htScale.get():htScale2.get()]
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         gray=cv2.medianBlur(gray,3)
-    #    //75 decent, eyelash interfering
         ret,thresh = cv2.threshold(gray,thresholdSlider.get(),255,cv2.THRESH_BINARY_INV)
         
         _,contours, heih = cv2.findContours(thresh,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
@@ -543,7 +566,7 @@ def show_frame():
                        cMax=c
                        eMax=ellipse
                        foundC=True
-            except:
+            except:        
                 pass
         
                     
@@ -551,9 +574,16 @@ def show_frame():
             #print(ratMax,(3.14*eMax[1][0]/2*eMax[1][1]/2))
             cv2.drawContours(frame,cMax,-1,(0,255,0),1)
             cv2.ellipse(frame, eMax, (0,255,255),1)
-            xTemp=eMax[0][0]
-            yTemp=eMax[0][1]
+            
+            M = cv2.moments(cMax)
+            if M["m00"] != 0:
+                cX = int(M["m10"] / M["m00"])
+                cY = int(M["m01"] / M["m00"])
+            xTemp=(eMax[0][0]+cX)/2
+            yTemp=(eMax[0][1]+cY)/2
+            cv2.circle(frame, (int(xTemp), int(yTemp)), 15, (120, 120, 120), 2)
             row.extend([(xTemp/wTemp-0.5)*2,(yTemp/hTemp-0.5)*2])
+            
         else:
             row=[]
         if not isCalibrating:
@@ -562,16 +592,7 @@ def show_frame():
             imgtk2 = ImageTk.PhotoImage(image=img2)
             lmain2.imgtk = imgtk2
             lmain2.configure(image=imgtk2)
-        if(isCalibrating):
-            if(len(row)>3):
-                try:
-                    #row.extend([gTruthX/width,gTruthY/height])
-                    row.extend([(gTruthX/width-0.5)*2,(gTruthY/height-0.5)*2])          #Change normalization fn
-                    writer.writerow(row)
-                    #print(row)
-                except Exception as e:
-                    print(e)
-            #print(row)
+        
             
         if trainingComplete and len(row)==8:
             result=model.predict(np.array([row]))
@@ -646,7 +667,7 @@ htScale.set(395)
 htScale2.set(941)
 wdScale.set(95)
 wdScale2.set(720)
-thresholdSlider.set(60)
+thresholdSlider.set(28)
 
 
 

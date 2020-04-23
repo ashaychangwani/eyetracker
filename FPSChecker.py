@@ -29,11 +29,11 @@ while True:
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
-    if i==300:
+    if i==150:
         break
 t2=time.time()
 
-print('Camera 1 FPS: ',300/(t2-t1))
+print('Camera 1 FPS: ',150/(t2-t1))
 
 cap.release()
 
@@ -56,11 +56,11 @@ while True:
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
-    if i==300:
+    if i==150:
         break
 t2=time.time()
 
-print('Camera 2 FPS: ',300/(t2-t1))
+print('Camera 2 FPS: ',150/(t2-t1))
 
 
 
