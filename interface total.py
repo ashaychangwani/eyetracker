@@ -14,9 +14,8 @@ Created on Sun Mar 24 21:16:36 2019
 """
 from tkinter import Tk, Canvas, Button, Frame, Label, LEFT, OptionMenu, Scale, HORIZONTAL, BooleanVar, StringVar
 import PIL
-from PIL import ImageTk#,Image
+from PIL import ImageTk
 import time
-#import tensorflow as tf
 import csv
 import numpy as np
 from pandas import read_csv
@@ -109,7 +108,7 @@ allFramesProcessed=False
 
 
 
-#############               For finding missing beacon              #############
+#############               For finding missing beacon              ############
 def slopeCalc(x1, y1, x2, y2): 
     return (y2-y1)/(x2-x1)
 
@@ -252,7 +251,6 @@ def initCalib():
             canvas1.delete(pointer)
             pointer=canvas1.create_oval(int((gPredX+1)/2*width-50), int((gPredY+1)/2*height-50), int((gPredX+1)/2*width+50), int((gPredY+1)/2*height+50), outline="#f11",fill="#1f1", width=2)
             
-#            pointer=canvas1.create_oval(200+test,200+test,400+test,400+test, outline="#f11",fill="#1f1", width=2)
             
     frame = Frame(root2, width=width, height=height,bg='Red')
     startCalib=Button(frame, text="Start Calibration", command=displayDots)
@@ -302,19 +300,23 @@ def ProcessingFn(frame,frame2,gTruthX, gTruthY):
                  cY = int(M["m01"] / M["m00"])
                  cv2.circle(mask, (cX, cY), 15, (120, 120, 120), 2)
                  if(count<3):
-                     row.extend([(cX/cWidth-0.5)*2,(cY/cHeight-0.5)*2])
+                     row.extend([(cX/cWidth),(cY/cHeight)])
                  count+=1
         row=to_matrix(row)
         row=sorted(row , key=lambda k: [k[0], k[1]])
         row=to_list(row)
         if(count==2):
             slope=slopeCalc(*tuple(row))
-            if(slope<0.6):                      #CHECK LOGIC
+            
+            if slope>=-0.4 and slope<=0.4:
                 row.insert(2,-1)
-                row.insert(2,-1)                #Change from -1
+                row.insert(2,-1)  
+            elif slope>0:
+                row.insert(4,-1)
+                row.insert(4,-1)
             else:
-                row.insert(4,-1)
-                row.insert(4,-1)
+                row.insert(0,-1)
+                row.insert(0,-1)
             count+=1
         
         while (count<3):
@@ -366,7 +368,7 @@ def ProcessingFn(frame,frame2,gTruthX, gTruthY):
             row=[]
         if(len(row)>3):
             try:
-                row.extend([(gTruthX/width-0.5)*2,(gTruthY/height-0.5)*2])          #Change normalization fn
+                row.extend([(gTruthX/width-0.5)*2,(gTruthY/height-0.5)*2])         
                 writerLock.acquire()
                 writer.writerow(row)
                 writerLock.release()
@@ -479,19 +481,23 @@ def show_frame():
         row=to_list(row)
         if(count==2):
             slope=slopeCalc(*tuple(row))
-            if(slope<0.6):                      #CHECK LOGIC
+            
+            if slope>=-0.4 and slope<=0.4:
                 row.insert(2,-1)
-                row.insert(2,-1)                #Change from -1
+                row.insert(2,-1)  
+            elif slope>0:
+                row.insert(4,-1)
+                row.insert(4,-1)
             else:
-                row.insert(4,-1)
-                row.insert(4,-1)
+                row.insert(0,-1)
+                row.insert(0,-1)
             count+=1
         
-        beaconCount.set("Beacons being tracked: "+str(count))
         while (count<3):
             row.extend([-1,-1])
             count+=1
-        
+            
+            
         if not isCalibrating:
             mask = cv2.flip(mask, -1)
             img = PIL.Image.fromarray(mask)
