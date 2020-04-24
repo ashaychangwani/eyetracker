@@ -46,7 +46,7 @@ cHeight=480
 cWidth=640
 
 
-timePerDot=2
+timePerDot=4000
 
 camFrameWidth=width*0.7
 menuFrameWidth=width-camFrameWidth
@@ -204,7 +204,6 @@ def initCalib():
         canvas.delete(pointer)
         isCalibrating=False
         writeFile.close()
-        '''
         dataframe=read_csv("calib.csv")
         
         X=dataframe.iloc[:,0:8].values
@@ -231,6 +230,14 @@ def initCalib():
         print("Saved model to disk")
         
         '''
+        model=Sequential()
+        model.add(Dense(8,input_dim=8,kernel_initializer='normal', activation='tanh'))
+        #model.add(Dropout(0.2))
+        model.add(Dense(22,kernel_initializer='normal', activation='tanh'))
+        #model.add(Dropout(0.2))
+        model.add(Dense(2,kernel_initializer='normal'))
+        #model.compile(loss='mean_squared_error', optimizer='adam',metrics=['mse','accuracy'])
+        model.compile(loss='mean_squared_error', optimizer='RMSProp',metrics=['mse'])
         json_file = open('model.json', 'r')
         loaded_model_json = json_file.read()
         json_file.close()
@@ -239,6 +246,7 @@ def initCalib():
         model.load_weights("model.h5")
         print("Loaded model from disk")
         
+        '''
         
         #y_pred=model.predict(np.array(X_test))      UNUSED
         
