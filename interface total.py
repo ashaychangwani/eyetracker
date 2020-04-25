@@ -212,15 +212,15 @@ def initCalib():
         X_train,X_test,y_train,y_test=train_test_split(X,y,test_size=0.1,random_state=0)
 
         model=Sequential()
-        model.add(Dense(8,input_dim=8,kernel_initializer='normal', activation='tanh'))
-        #model.add(Dropout(0.2))
-        model.add(Dense(22,kernel_initializer='normal', activation='tanh'))
-        #model.add(Dropout(0.2))
+        model.add(Dense(8,input_dim=8,kernel_initializer='normal', activation='relu'))
+        
+        model.add(Dense(22,kernel_initializer='normal', activation='relu'))
+        
         model.add(Dense(2,kernel_initializer='normal'))
-        #model.compile(loss='mean_squared_error', optimizer='adam',metrics=['mse','accuracy'])
+        
         model.compile(loss='mean_squared_error', optimizer='RMSProp',metrics=['mse'])
         with tf.device('/cpu:0'):
-            model.fit(X_train,y_train,validation_data=(X_test,y_test),batch_size=16,epochs=350)
+            model.fit(X_train,y_train,validation_data=(X_test,y_test),batch_size=32,epochs=350)
         
         model_json = model.to_json()
         with open("model.json", "w") as json_file:
