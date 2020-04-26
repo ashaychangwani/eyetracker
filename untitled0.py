@@ -45,9 +45,15 @@ def mlCode(activationF,epoch,batchSize,drop,dropPtage):
     model.add(Dense(2,kernel_initializer='normal'))
     #model.compile(loss='mean_squared_error', optimizer='adam',metrics=['mse','accuracy'])
     model.compile(loss='mean_squared_error', optimizer='RMSProp',metrics=['mse'])
-    with tf.device('/device:GPU:0'):
+    with tf.device('/device:CPU:0'):
         model.fit(X_train,y_train,validation_data=(X_test,y_test),batch_size=batchSize,epochs=epoch)
-        
+            
+    model_json = model.to_json()
+    with open("model.json", "w") as json_file:
+        json_file.write(model_json)
+    # serialize weights to HDF5
+    model.save_weights("model.h5")
+    print("Saved model to disk")
     res=model.evaluate(X_train,y_train)
     result=result+"\n Activation Function= "+activationF+"\t Epochs= "+str(epoch)+"\t Batch Size= "+str(batchSize)+"\t Drop? ="+str(drop)+"\t Dropout rate= "+str(dropPtage)+"\t Result= "+str(res[0])
     return res[0]
@@ -68,15 +74,13 @@ for e in epochs:
 '''
 t1=time.time()
 
-for i in range(2):
-    mlCode('relu',150,8,False,0.1)
+#res=mlCode('relu',350,16,False,0.1)
 t2=time.time()
 
 t3=time.time()
 
 add2=0
-for i in range(2):
-    mlCode('relu',350,32,False,0.1)
+mlCode('relu',350,32,False,0.1)
 
 t4=time.time()
 print(t2-t1)

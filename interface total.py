@@ -25,23 +25,23 @@ import tensorflow as tf
 import traceback
 from itertools import chain
 
-from keras.models import Sequential,model_from_json
-from keras.layers import Dense,Dropout
+from keras.models import Sequential, model_from_json
+from keras.layers import Dense
 from sklearn.model_selection import train_test_split
 
 from concurrent.futures import ThreadPoolExecutor
 
-import sys,os
+import sys, os
 sys.path.append("/usr/local/lib/python3.7/site-packages")
-import tensorflow as tf
+
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 import cv2
 
 #########           Setting up the interface, constants            ###########
 
 
-height=1080
-width=1920
+height = 1080
+width = 1920
 cHeight=480
 cWidth=640
 
@@ -65,7 +65,7 @@ upper_white = np.array([255])
 
 warningMessage="Tracking beacons: "
 
-cams=["Camera 1","Camera 2"]
+cams=["Camera 2","Camera 1"]
 cap=None
 cap2=None
 execStarted=False
@@ -181,9 +181,9 @@ def initCalib():
         isCalibrating=True
         executor.submit(startCalibrationProcessing)
         for i in range (5):
-            for j in range (4):  
+            for j in range (5):  
                 x=width*i/4
-                y=height*j/3
+                y=height*j/4
                 canvas.delete(pointer)
                 gTruthX=x
                 gTruthY=y
@@ -229,14 +229,17 @@ def initCalib():
         model.save_weights("model.h5")
         print("Saved model to disk")
         
+        
+        
+        
         '''
         model=Sequential()
-        model.add(Dense(8,input_dim=8,kernel_initializer='normal', activation='tanh'))
-        #model.add(Dropout(0.2))
-        model.add(Dense(22,kernel_initializer='normal', activation='tanh'))
-        #model.add(Dropout(0.2))
+        model.add(Dense(8,input_dim=8,kernel_initializer='normal', activation='relu'))
+        
+        model.add(Dense(22,kernel_initializer='normal', activation='relu'))
+        
         model.add(Dense(2,kernel_initializer='normal'))
-        #model.compile(loss='mean_squared_error', optimizer='adam',metrics=['mse','accuracy'])
+        
         model.compile(loss='mean_squared_error', optimizer='RMSProp',metrics=['mse'])
         json_file = open('model.json', 'r')
         loaded_model_json = json_file.read()
@@ -254,7 +257,7 @@ def initCalib():
         canvas.destroy()
     
     def dispTracker():
-        global row2,gPredX,gPredY,trainingComplete,isTracking
+        global row2,gPredX,gPredY,trainingComplete,isTracking,model
         nonlocal pointer
         canvas1=Canvas(root2, width=1920, height=1080, borderwidth=0, highlightthickness=0, bg="red")
         isTracking=True
@@ -262,8 +265,25 @@ def initCalib():
         qb=Button(canvas1,text="quit",command=root2.destroy)
         qb.place(x=width/2,y=height-80,anchor="center")
         test=0
-        
-        while(trainingComplete):
+        if(not trainingComplete):
+            model=Sequential()
+            model.add(Dense(8,input_dim=8,kernel_initializer='normal', activation='relu'))
+            
+            model.add(Dense(22,kernel_initializer='normal', activation='relu'))
+            
+            model.add(Dense(2,kernel_initializer='normal'))
+            
+            model.compile(loss='mean_squared_error', optimizer='RMSProp',metrics=['mse'])
+            json_file = open('model.json', 'r')
+            loaded_model_json = json_file.read()
+            json_file.close()
+            model = model_from_json(loaded_model_json)
+            
+            model.load_weights("model.h5")
+            print("Loaded model from disk")
+            trainingComplete=True
+        while(True):
+            print("PREDICTED COORD\t",gPredX,"\t",gPredY)
             if gPredX<-1:
                 gPredX=-1
             if gPredY<-1:
@@ -297,11 +317,11 @@ def initCalib():
     
     
 def startCalibrationProcessing():
-    global HTCFrame, ITCFrame, calibExecutor, isCalibrating, gTruthX, gPredY, isTracking
+    global HTCFrame, ITCFrame, calibExecutor, isCalibrating, gTruthX, gTruthY, isTracking
     
     while isCalibrating:
         calibExecutor.submit(ProcessingFn,HTCFrame.copy(),ITCFrame.copy(),gTruthX, gTruthY)
-        time.sleep(1/30)
+        time.sleep(1/29)
         
    # while isTracking:
         #calibExecutor.submit(TrackingFn,HTCFrame.copy(),ITCFrame.copy(),gTruthX, gTruthY)
@@ -314,7 +334,7 @@ def startCalibrationProcessing():
         print('calibExecutor shutdown')
 
 def ProcessingFn(frame,frame2,gTruthX, gTruthY):
-    global writer,writerLock
+    global writer,writerLock,wdScale2,wdScale,htScale,htScale2,isCalibrating,trainingComplete,isTracking
     wTemp=wdScale2.get()-wdScale.get()
     hTemp=htScale2.get()-htScale.get()
     try:
@@ -671,13 +691,13 @@ def shutdownTime():
     finally:
         root.destroy()
 root=Tk()
-#root.attributes("-fullscreen", True)
+root.attributes("-fullscreen", True)
 root.bind('<Escape>', lambda e: root.quit())
 root.geometry('%dx%d'%(width,height))
-frame = Frame(root, width=menuFrameWidth, height=menuFrameHeight,bg='Red')
-frame2 = Frame(root, width=camFrameWidth, height=cam1FrameHeight,bg='Blue')
+frame = Frame(root, width=menuFrameWidth, height=menuFrameHeight,bg='Gray')
+frame2 = Frame(root, width=camFrameWidth, height=cam1FrameHeight)#,bg='Blue')
 frame2.pack_propagate(0)
-frame3 = Frame(root, width=camFrameWidth, height=cam2FrameHeight,bg='Yellow')
+frame3 = Frame(root, width=camFrameWidth, height=cam2FrameHeight)#,bg='Yellow')
 frame3.pack_propagate(0)
 frame.pack(side=LEFT)
 lmain = Label(frame2)
