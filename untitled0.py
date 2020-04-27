@@ -31,7 +31,7 @@ y=dataframe.iloc[:,8:10].values
 
 X_train,X_test,y_train,y_test=train_test_split(X,y,test_size=0.1)
 
-
+'''
 def mlCode(activationF,epoch,batchSize,drop,dropPtage):
     global result,X_train,X_test,y_train,y_test
     
@@ -64,14 +64,13 @@ actFn=['tanh','relu','sigmoid']
 batch_size=[8,16,32,64,128,256]
 drop=[True,False]
 dropPtage=[0.1,0.15,0.2,0.25]
-'''
+
 for e in epochs:
     for a in actFn:
         for b in batch_size:
             for d in drop:
                 for dP in dropPtage:
                     mlCode(a,e,b,d,dP)
-'''
 t1=time.time()
 
 #res=mlCode('relu',350,16,False,0.1)
@@ -85,3 +84,29 @@ mlCode('relu',350,32,False,0.1)
 t4=time.time()
 print(t2-t1)
 print(t4-t3)    
+
+'''
+
+model=Sequential()
+model.add(Dense(8,input_dim=8,kernel_initializer='normal', activation='relu'))
+model.add(Dense(22,kernel_initializer='normal', activation='relu'))
+model.add(Dense(2,kernel_initializer='normal'))
+#model.compile(loss='mean_squared_error', optimizer='adam',metrics=['mse','accuracy'])
+model.compile(loss='mean_squared_error', optimizer='RMSProp',metrics=['mse'])
+with tf.device('/device:CPU:0'):
+    history=model.fit(X_train,y_train,validation_data=(X_test,y_test),batch_size=32,epochs=350)
+    
+    
+
+import matplotlib.pyplot as plt
+
+
+# Plot training & validation loss values
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.title('Model loss')
+plt.ylabel('Loss')
+plt.xlabel('Epoch')
+plt.legend(['Train', 'Test'], loc='upper left')
+plt.show()
+            
