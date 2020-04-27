@@ -65,7 +65,7 @@ upper_white = np.array([255])
 
 warningMessage="Tracking beacons: "
 
-cams=["Camera 2","Camera 1"]
+cams=["Camera 1","Camera 2"]
 cap=None
 cap2=None
 execStarted=False
@@ -171,7 +171,7 @@ def initCalib():
     def displayDots(): 
         global isCalibrating,gTruthX,gTruthY,model,writeFile,writer,trainingComplete,timePerDot,allFramesProcessed,isTracking
         nonlocal waitVar,pointer
-        writeFile=open('calib.csv', 'a+')
+        writeFile=open('calib.csv', 'w')
         writer = csv.writer(writeFile)
         canvas = Canvas(root2, width=width, height=height, borderwidth=0, highlightthickness=0, bg="black")
         canvas.place(x=width/2,y=height/2,anchor="center")
@@ -209,7 +209,7 @@ def initCalib():
         X=dataframe.iloc[:,0:8].values
         y=dataframe.iloc[:,8:10].values
         
-        X_train,X_test,y_train,y_test=train_test_split(X,y,test_size=0.1,random_state=0)
+        X_train,X_test,y_train,y_test=train_test_split(X,y,test_size=0.1,shuffle=True)
 
         model=Sequential()
         model.add(Dense(8,input_dim=8,kernel_initializer='normal', activation='relu'))
@@ -219,8 +219,16 @@ def initCalib():
         model.add(Dense(2,kernel_initializer='normal'))
         
         model.compile(loss='mean_squared_error', optimizer='RMSProp',metrics=['mse'])
+        
+        json_file = open('model.json', 'r')
+        loaded_model_json = json_file.read()
+        json_file.close()
+        model = model_from_json(loaded_model_json)
+        model.load_weights("model.h5")
+        
+        
         with tf.device('/cpu:0'):
-            model.fit(X_train,y_train,validation_data=(X_test,y_test),batch_size=32,epochs=350)
+            model.fit(X_train,y_train,validation_data=(X_test,y_test),batch_size=32,epochs=175)
         
         model_json = model.to_json()
         with open("model.json", "w") as json_file:
@@ -323,8 +331,6 @@ def startCalibrationProcessing():
         calibExecutor.submit(ProcessingFn,HTCFrame.copy(),ITCFrame.copy(),gTruthX, gTruthY)
         time.sleep(1/29)
         
-   # while isTracking:
-        #calibExecutor.submit(TrackingFn,HTCFrame.copy(),ITCFrame.copy(),gTruthX, gTruthY)
     if not isCalibrating and not isTracking:
         print('waiting for executor to shut down')
         #executor.shutdown(wait=True)
@@ -680,8 +686,10 @@ def shutdownTime():
         HTCExecutor.shutdown(wait=False)
         ITCExecutor.shutdown(wait=False)
         executor.shutdown(wait=False)
-        cap.release()
-        cap2.release()
+        if cap != None:
+            cap.release()
+        if cap2 !=None:
+            cap2.release()
     except Exception as e:
         exc_type, exc_obj, exc_tb = sys.exc_info()
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
@@ -691,7 +699,7 @@ def shutdownTime():
     finally:
         root.destroy()
 root=Tk()
-root.attributes("-fullscreen", True)
+#root.attributes("-fullscreen", True)
 root.bind('<Escape>', lambda e: root.quit())
 root.geometry('%dx%d'%(width,height))
 frame = Frame(root, width=menuFrameWidth, height=menuFrameHeight,bg='Gray')
